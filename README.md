@@ -1,6 +1,6 @@
-# 🎈 Blank app template
+# 🎈 Strokes Gained Log
 
-A simple Streamlit app template for you to modify!
+A simple Streamlit data entry app to help calculate strokes gained!
 
 [![Open in Streamlit](https://strokesgainedlog.streamlit.app/))
 
