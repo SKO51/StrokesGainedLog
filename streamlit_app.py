@@ -38,7 +38,7 @@ with st.form("round_info_form"):
         num_holes = st.number_input("Number of Holes", min_value=1, max_value=18)
 
     with col6:
-        tournament_type = st.text_input("Tournament Type")
+        round_type = st.text_input("Round Type")
 
     # Submit Button - aligned properly with other fields
     with col7:
@@ -53,7 +53,7 @@ with st.form("round_info_form"):
         st.session_state.tournament_name = tournament
         st.session_state.round_number = rnd_number
         st.session_state.num_holes = num_holes
-        st.session_state.tournament_type = tournament_type
+        st.session_state.round_type = round_type
         st.session_state.round_info_entered = True
         st.success("Round info saved!")
 
@@ -414,7 +414,7 @@ if st.session_state.get("hole_info_entered", False):
                     'RndDate': st.session_state.get("round_date", ""),
                     'Tournament': st.session_state.get("tournament_name", ""),
                     'Round': st.session_state.get("round_number", ""),
-                    'Round Type': st.session_state.get("tournament_type"),
+                    'Round Type': st.session_state.get("round_type", ""),
                     'Hole': hole_num,
                     'Par': st.session_state.hole_table['Par'][hole_num - 1]
                 }
