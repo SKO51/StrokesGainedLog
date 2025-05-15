@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(layout="wide")
+# Wide layout for dashboards, data tables, or multi-column forms
+st.set_page_config(layout="wide", page_title="Strokes Gained Entry", page_icon="⛳")
 st.title("Golf Round Entry - Strokes Gained Logger")
 
 # Session state to preserve inputs
@@ -14,7 +15,7 @@ if "hole_info_entered" not in st.session_state:
 st.header("Step 1: Round Info")
 with st.form("round_info_form"):
     # Create columns - adjust widths as needed
-    col1, col2, col3, col4, col5, col6 = st.columns([2.5, 1.5, 2, 1, 1, 1.5])
+    col1, col2, col3, col4, col5, col6, col7 = st.columns([2.5, 1.5, 2, 1, 1, 1, 1.5])
 
     # Player Name
     with col1:
@@ -36,10 +37,14 @@ with st.form("round_info_form"):
     with col5:
         num_holes = st.number_input("Number of Holes", min_value=1, max_value=18)
 
-    # Submit Button - aligned properly with other fields
     with col6:
+        tournament_type = st.text_input("Tournament Type")
+
+    # Submit Button - aligned properly with other fields
+    with col7:
         st.markdown("<div style='margin-top: 1.75rem;'></div>", unsafe_allow_html=True)
         submitted = st.form_submit_button("Submit Round Info", use_container_width=True)
+
 
     # Save values on submit
     if submitted:
@@ -48,6 +53,7 @@ with st.form("round_info_form"):
         st.session_state.tournament_name = tournament
         st.session_state.round_number = rnd_number
         st.session_state.num_holes = num_holes
+        st.session_state.tournament_type = tournament_type
         st.session_state.round_info_entered = True
         st.success("Round info saved!")
 
@@ -244,25 +250,27 @@ if st.session_state.get("hole_info_entered", False):
         hole_num = i + 1
         is_saved = hole_num in st.session_state.saved_holes
 
-        # Colors and indicators
         button_label = f"Hole {hole_num}"
         status_text = "✓ Saved" if is_saved else "Not Saved"
         status_bg = "#d4edda" if is_saved else "#f8d7da"
         status_color = "#155724" if is_saved else "#721c24"
 
-        # Status bar HTML
-        status_html = f"""
-        <div style="background-color: {status_bg}; color: {status_color};
-                    padding: 2px 6px; border-radius: 5px; text-align: center;
-                    font-size: 12px; margin-bottom: 4px;">
-            {status_text}
+        # Use a shared wrapper with fixed width and center alignment
+        wrapper_html = f"""
+        <div style="width: 100%; text-align: center;">
+            <div style="background-color: {status_bg}; color: {status_color};
+                        padding: 4px 0; border-radius: 5px;
+                        font-size: 12px; margin-bottom: 4px; max-width: 100%;">
+                {status_text}
+            </div>
         </div>
         """
-        col.markdown(status_html, unsafe_allow_html=True)
+        col.markdown(wrapper_html, unsafe_allow_html=True)
 
-        # Responsive short button label
-        col.button(button_label, key=f"select_hole_{hole_num}",
-                   on_click=select_hole_callback, args=(hole_num,))
+        # Button — maintain same alignment
+        with col:
+            col.button(button_label, key=f"select_hole_{hole_num}",
+                       on_click=select_hole_callback, args=(hole_num,))
 
     # --- Show Shot Input UI ---
     selected_hole = st.session_state.get("selected_hole", 1)
@@ -386,13 +394,13 @@ if st.session_state.get("hole_info_entered", False):
     all_holes_saved = len(st.session_state.saved_holes) == len(st.session_state.hole_table["Hole"])
 
     if all_holes_saved:
-        if st.button("Export All Data to CSV"):
+        if st.button("Generate CSV"):
             import pandas as pd
             from io import StringIO
 
             # Define all columns with desired names
             all_columns = [
-                'Player', 'RndDate', 'Tournament', 'Round',
+                'Player', 'RndDate', 'Tournament', 'Round', 'Round Type',
                 'Hole', 'Par', 'Stroke', 'Club', 'Lie',
                 'Pin Distance', 'Pin Location', 'Miss Direction',
                 'Pin-High', 'On-Line', 'Putt Break', 'Foul Ball'
@@ -406,6 +414,7 @@ if st.session_state.get("hole_info_entered", False):
                     'RndDate': st.session_state.get("round_date", ""),
                     'Tournament': st.session_state.get("tournament_name", ""),
                     'Round': st.session_state.get("round_number", ""),
+                    'Round Type': st.session_state.get("tournament_type"),
                     'Hole': hole_num,
                     'Par': st.session_state.hole_table['Par'][hole_num - 1]
                 }
@@ -463,7 +472,7 @@ if st.session_state.get("hole_info_entered", False):
             st.dataframe(df)
 
     else:
-        st.button("Export All Data to CSV (Complete All Holes First)", disabled=True)
+        st.button("Generate CSV (Complete All Holes First)", disabled=True)
         unsaved_holes = set(range(1, len(st.session_state.hole_table["Hole"]) + 1)) - st.session_state.saved_holes
         st.warning(f"Please Complete Shots for Holes: {', '.join(map(str, sorted(unsaved_holes)))}")
 
