@@ -275,11 +275,49 @@ if st.session_state.get("hole_info_entered", False):
     # --- Show Shot Input UI ---
     selected_hole = st.session_state.get("selected_hole", 1)
     st.subheader(f"Shot Entry for Hole {selected_hole}")
-    st.subheader(
-        f"Par {st.session_state.hole_table['Par'][selected_hole - 1]} - "
-        f"{st.session_state.hole_table['Yardage'][selected_hole - 1]} yds - "
-        f"{st.session_state.hole_table['Score'][selected_hole - 1]} Strokes - "
-        f"Pin ({st.session_state.hole_table['Pin'][selected_hole - 1]})")
+    par = st.session_state.hole_table['Par'][selected_hole - 1]
+    yardage = st.session_state.hole_table['Yardage'][selected_hole - 1]
+    score = st.session_state.hole_table['Score'][selected_hole - 1]
+    pin = st.session_state.hole_table['Pin'][selected_hole - 1]
+
+    # Determine shape and style
+    shape_style = ""
+    if score <= par - 2:
+        shape_style = "border-radius: 50%; border: 3px double green;"
+    elif score == par - 1:
+        shape_style = "border-radius: 50%; border: 2px solid green;"
+    elif score == par + 1:
+        shape_style = "border: 2px solid red;"
+    elif score >= par + 2:
+        shape_style = "border: 3px double red;"
+
+    # Build styled score box
+    if shape_style:
+        styled_score = f"""
+            <span style="
+                display: inline-block;
+                width: 35px;
+                height: 35px;
+                line-height: 32px;
+                text-align: center;
+                font-weight: bold;
+                {shape_style}
+            ">
+                {score}
+            </span>
+        """
+    else:
+        styled_score = f"<span style='font-weight: bold;'>{score}</span>"
+
+    # Show the styled header
+    st.markdown(
+        f"""
+        <h3 style="text-align: left;">
+            Par {par} – {yardage} yds – {styled_score} Strokes – Pin ({pin})
+        </h3>
+        """,
+        unsafe_allow_html=True
+    )
 
     score = st.session_state.hole_table["Score"][selected_hole - 1]
     yardage = st.session_state.hole_table["Yardage"][selected_hole - 1]
