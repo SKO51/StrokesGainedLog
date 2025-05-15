@@ -2,7 +2,7 @@
 
 A simple Streamlit data entry app to help calculate strokes gained!
 
-[![Open in Streamlit](https://strokesgainedlog.streamlit.app/))
+[![Open in Streamlit](https://strokesgainedlog.streamlit.app))
 
 ### How to run it on your own machine
 
