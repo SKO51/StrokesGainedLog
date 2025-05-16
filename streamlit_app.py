@@ -15,7 +15,7 @@ if "hole_info_entered" not in st.session_state:
 st.header("Step 1: Round Info")
 with st.form("round_info_form"):
     # Create columns - adjust widths as needed
-    col1, col2, col3, col4, col5, col6, col7 = st.columns([2.5, 1.5, 2, 1, 1, 1, 1.5])
+    col1, col2, col3, col4, col5, col6, col7 = st.columns([1.5, 1, 1.5, 0.5, 0.5, 1.5, 1])
 
     # Player Name
     with col1:
@@ -31,14 +31,14 @@ with st.form("round_info_form"):
 
     # Round Number
     with col4:
-        rnd_number = st.number_input("Round Number", min_value=1, max_value=4)
+        rnd_number = st.selectbox("Round", [1, 2, 3, 4])
 
     # Number of Holes
     with col5:
-        num_holes = st.number_input("Number of Holes", min_value=1, max_value=18)
+        num_holes = st.number_input("Holes", min_value=1, max_value=18)
 
     with col6:
-        round_type = st.text_input("Round Type")
+        round_type = st.selectbox("Type", ["Competitive", "Practice"])
 
     # Submit Button - aligned properly with other fields
     with col7:
@@ -59,6 +59,102 @@ with st.form("round_info_form"):
 
 #Additional Notes (Green Speed, Weather, Wind, Temperature) + (Sunny OverCast Rain, High Medium Low, Slow Average Fast)
 #Add Bag Club, Shaft
+
+def show_scorecard_summary(hole_table):
+    """Render the scorecard summary table"""
+    holes = hole_table["Hole"]
+
+    st.markdown("<h4 style='text-align: center; margin-top: 2rem;'>Scorecard Summary</h4>",
+                unsafe_allow_html=True)
+
+    # Build HTML table
+    html = """
+    <style>
+        table.custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        table.custom-table th, table.custom-table td {
+            padding: 6px 10px;
+            text-align: center;
+            border: 1px solid #ccc;
+        }
+        .score-box {
+            display: inline-block;
+            width: 35px;
+            height: 35px;
+            line-height: 35px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+    <table class='custom-table'>
+        <thead>
+            <tr>"""
+
+    for row in ["Hole", "Par", "Score"]:
+        html += f"<tr><th>{row}</th>"
+        for i in range(len(holes)):
+            if row == "Hole":
+                val = holes[i]
+                html += f"<td>{val}</td>"
+            elif row == "Par":
+                val = hole_table["Par"][i]
+                html += f"<td>{val}</td>"
+            elif row == "Score":
+                score = hole_table["Score"][i]
+                par = hole_table["Par"][i]
+
+                # Determine styling
+                if score <= par - 2:
+                    style = "border-radius: 50%; border: 4px double green; background-color: black;"
+                elif score == par - 1:
+                    style = "border-radius: 50%; border: 2px solid green; background-color: black;"
+                elif score == par:
+                    style = ""
+                elif score == par + 1:
+                    style = "border: 2px solid red; background-color: black;"
+                elif score >= par + 2:
+                    style = "border: 4px solid red; background-color: black;"
+
+                html += f"<td><div class='score-box' style='{style}'>{score}</div></td>"
+
+        html += "</tr>"
+
+    total_score = sum(hole_table["Score"])
+    total_par = sum(hole_table["Par"])
+    diff = total_score - total_par
+
+    if diff > 0:
+        diff_str = f"+{diff}"
+    elif diff < 0:
+        diff_str = f"{diff}"
+    else:
+        diff_str = "E"
+
+    total_score = sum(hole_table["Score"])
+    total_par = sum(hole_table["Par"])
+    diff = total_score - total_par
+
+    if diff > 0:
+        diff_str = f"+{diff}"
+    elif diff < 0:
+        diff_str = f"{diff}"
+    else:
+        diff_str = "E"
+
+    html += f"""
+        <tr>
+            <th style='text-align: center; font-weight: bold;'>Total</th>
+             <td colspan='{len(holes)}' style='text-align: center; font-weight: bold;'>{total_score}</td>
+            <td style='text-align: center; font-weight: bold;'>{total_score} ({diff_str})</td>
+        </tr>
+    </tbody></table>
+    """
+
+    st.markdown(html, unsafe_allow_html=True)
+
 # Step 2: Hole Info
 if st.session_state.round_info_entered:
     st.header("Step 2: Hole Info")
@@ -66,43 +162,60 @@ if st.session_state.round_info_entered:
     # Add compact CSS styling
     st.markdown("""
     <style>
-        /* Compact form styling */
         div.stForm {
             margin-top: -1rem;
         }
-        /* Center all input text */
         input[type="number"], 
         div[data-baseweb="select"] input {
             text-align: center !important;
         }
-        /* Reduce space between rows */
         .stMarkdown p {
             margin-bottom: 0.5rem !important;
         }
     </style>
     """, unsafe_allow_html=True)
 
+    # Handle change in number of holes
+    num_holes = int(st.session_state.num_holes)
+    if "last_num_holes" not in st.session_state or st.session_state.last_num_holes != num_holes:
+        st.session_state.last_num_holes = num_holes
+        st.session_state.hole_page = 0
+        st.session_state.all_hole_data = {
+            "Hole": list(range(1, num_holes + 1)),
+            "Par": [None] * num_holes,
+            "Score": [None] * num_holes,
+            "Yardage": [None] * num_holes,
+            "Pin": [None] * num_holes,
+        }
+
+    if "hole_page" not in st.session_state:
+        st.session_state.hole_page = 0
+
     with st.form("hole_info_form"):
         st.markdown("<h3 style='text-align: center; margin-bottom: 1rem;'>Hole Summary Table</h3>",
                     unsafe_allow_html=True)
 
-        num_holes = st.session_state.num_holes
-        holes = list(range(1, int(num_holes) + 1))
+        holes_per_page = 9
+        total_pages = (num_holes - 1) // holes_per_page + 1
+        current_page = st.session_state.hole_page
+
+        start = current_page * holes_per_page
+        end = min(start + holes_per_page, num_holes)
+        holes = list(range(start + 1, end + 1))  # holes for this page
+
         rows = ["Hole", "Par", "Score", "Yardage", "Pin"]
         table_data = {row: [] for row in rows}
 
         for row in rows:
-            # Create one extra column for the label
-            cols = st.columns([1] + [1 for _ in holes])  # 1 column for label + 1 per hole
+            cols = st.columns([1] + [1 for _ in holes])
 
-            # Label on the far left
             cols[0].markdown(
                 f"""
                 <div style='
                     font-weight: bold;
                     font-size: 20px;
                     text-align: center;
-                    line-height: 38px;  /* Adjust this to match input height */
+                    line-height: 38px;
                     height: 38px;
                 '>
                     {row}
@@ -113,24 +226,62 @@ if st.session_state.round_info_entered:
 
             for i, hole_number in enumerate(holes):
                 key = f"{row.lower().replace(' ', '_')}_{hole_number}"
+                idx = hole_number - 1
+
                 if row == "Hole":
-                    val = hole_number
                     cols[i + 1].markdown(
-                        f"<div style='text-align: center; font-weight: bold; font-size: 20px;'>{val}</div>",
+                        f"<div style='text-align: center; font-weight: bold; font-size: 20px;'>{hole_number}</div>",
                         unsafe_allow_html=True)
+                    table_data[row].append(hole_number)
                 elif row == "Par":
-                    val = cols[i + 1].number_input("Par", min_value=3, max_value=5, value=4, key=key,
-                                                   label_visibility="collapsed")
+                    val = cols[i + 1].number_input("Par", min_value=3, max_value=5,
+                                                   value=st.session_state.all_hole_data[row][idx] or 4,
+                                                   key=key, label_visibility="collapsed")
+                    table_data[row].append(val)
                 elif row == "Score":
-                    val = cols[i + 1].number_input("Score", min_value=1, max_value=10, value=4, key=key,
-                                                   label_visibility="collapsed")
+                    val = cols[i + 1].number_input("Score", min_value=1, max_value=10,
+                                                   value=st.session_state.all_hole_data[row][idx] or 4,
+                                                   key=key, label_visibility="collapsed")
+                    table_data[row].append(val)
                 elif row == "Yardage":
-                    val = cols[i + 1].number_input("Yardage", min_value=50, max_value=800, value=400, key=key,
-                                                   label_visibility="collapsed")
+                    val = cols[i + 1].number_input("Yardage", min_value=50, max_value=800,
+                                                   value=st.session_state.all_hole_data[row][idx] or 400,
+                                                   key=key, label_visibility="collapsed")
+                    table_data[row].append(val)
                 elif row == "Pin":
                     val = cols[i + 1].selectbox("Pin", options=["C", "FL", "FR", "BL", "BR"],
-                                                index=0, key=key, label_visibility="collapsed")
-                table_data[row].append(val)
+                                                index=0 if st.session_state.all_hole_data[row][idx] is None
+                                                else ["C", "FL", "FR", "BL", "BR"].index(st.session_state.all_hole_data[row][idx]),
+                                                key=key, label_visibility="collapsed")
+                    table_data[row].append(val)
+
+        # Pagination controls (only show if more than one page)
+        if total_pages > 1:
+            st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
+            center_col = st.columns([1, 2, 1])[1]
+
+            with center_col:
+                prev_col, next_col = st.columns([1, 1])
+
+                with prev_col:
+                    prev_clicked = st.form_submit_button("⛳ First Nine", use_container_width=True)
+
+                with next_col:
+                    next_clicked = st.form_submit_button("Second Nine ⛳⛳", use_container_width=True)
+
+                if prev_clicked and current_page > 0:
+                    for row in rows:
+                        for i, val in enumerate(table_data[row]):
+                            st.session_state.all_hole_data[row][start + i] = val
+                    st.session_state.hole_page -= 1
+                    st.rerun()
+
+                if next_clicked and current_page < total_pages - 1:
+                    for row in rows:
+                        for i, val in enumerate(table_data[row]):
+                            st.session_state.all_hole_data[row][start + i] = val
+                    st.session_state.hole_page += 1
+                    st.rerun()
 
         st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -138,28 +289,33 @@ if st.session_state.round_info_entered:
             submitted_holes = st.form_submit_button("Submit Hole Info", use_container_width=True)
 
         if submitted_holes:
-            st.session_state.hole_info_entered = True
-            st.session_state.hole_table = table_data
+            for row in rows:
+                for i, val in enumerate(table_data[row]):
+                    st.session_state.all_hole_data[row][start + i] = val
 
-            # Reset all shot-related data
-            if "shot_data" in st.session_state:
-                del st.session_state.shot_data
-            if "saved_holes" in st.session_state:
-                del st.session_state.saved_holes
-            if "save_shots_clicked" in st.session_state:
-                del st.session_state.save_shots_clicked
+            all_holes_entered = all(
+                len(st.session_state.all_hole_data[row]) == num_holes and
+                all(val is not None for val in st.session_state.all_hole_data[row])
+                for row in rows
+            )
 
-            # Initialize fresh data structures
-            st.session_state.shot_data = {}
-            st.session_state.saved_holes = set()
-            st.session_state.selected_hole = 1
+            if all_holes_entered:
+                st.session_state.hole_info_entered = True
+                st.session_state.hole_table = st.session_state.all_hole_data
 
-            st.success("Hole information saved and shot data reset!")
-            st.rerun()
+                for k in ["shot_data", "saved_holes", "save_shots_clicked"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
 
-# Initialize shot_data if not already
-if "shot_data" not in st.session_state:
-    st.session_state.shot_data = {}
+                st.session_state.shot_data = {}
+                st.session_state.saved_holes = set()
+                st.session_state.selected_hole = 1
+
+                st.success("All hole information saved and shot data reset!")
+
+                show_scorecard_summary(st.session_state.hole_table)
+            else:
+                st.warning(f"Please complete all {num_holes} holes before submitting")
 
 # Step 3: Shot Info
 if st.session_state.get("hole_info_entered", False):
@@ -179,7 +335,7 @@ if st.session_state.get("hole_info_entered", False):
                 "ShotNumber": shot,
                 "Club": st.session_state.get(f"club_{selected_hole}_{shot}", ""),
                 "Lie": st.session_state.get(f"lie_{selected_hole}_{shot}", ""),
-                "PinDistance": st.session_state.get(f"pd_{selected_hole}_{shot}", 0.0),
+                "PinDistance": st.session_state.get(f"pd_{selected_hole}_{shot}", ""),
                 "MissDirection": st.session_state.get(f"md_{selected_hole}_{shot}", "")
             }
 
@@ -218,7 +374,7 @@ if st.session_state.get("hole_info_entered", False):
                     "ShotNumber": shot,
                     "Club": st.session_state.get(f"club_{prev_hole}_{shot}", ""),
                     "Lie": st.session_state.get(f"lie_{prev_hole}_{shot}", ""),
-                    "PinDistance": st.session_state.get(f"pd_{prev_hole}_{shot}", 0.0),
+                    "PinDistance": st.session_state.get(f"pd_{prev_hole}_{shot}", ""),
                     "MissDirection": st.session_state.get(f"md_{prev_hole}_{shot}", "")
                 }
 
@@ -344,8 +500,8 @@ if st.session_state.get("hole_info_entered", False):
                                index=["Tee", "Fairway", "Rough", "Sand", "Green", "Other", ""].index(saved_shot.get("Lie", "Tee")),
                                key=f"lie_{selected_hole}_{shot}")
         pin_distance = cols[2].number_input(
-            "Pin Distance", min_value=0.0, max_value=1000.0,
-            value=saved_shot.get("PinDistance", float(yardage) if shot == 1 else 0.0),
+            "Pin Distance", min_value=-1, max_value=1000,
+            value=saved_shot.get("PinDistance", int(yardage) if shot == 1 else -1),
             key=f"pd_{selected_hole}_{shot}"
         )
         miss_direction = cols[3].selectbox("Miss Direction", ["", "Left", "Right", "Short", "Long"],
@@ -428,91 +584,89 @@ if st.session_state.get("hole_info_entered", False):
 if st.session_state.get("hole_info_entered", False):
     st.header("Step 4: Export Data")
 
-    # Check if all holes are saved
-    all_holes_saved = len(st.session_state.saved_holes) == len(st.session_state.hole_table["Hole"])
+    saved_holes = st.session_state.saved_holes
+    all_hole_numbers = set(st.session_state.hole_table["Hole"])
+    unsaved_holes = all_hole_numbers - saved_holes
 
-    if all_holes_saved:
-        if st.button("Generate CSV"):
-            import pandas as pd
-            from io import StringIO
+    if st.button("Generate CSV"):
+        import pandas as pd
 
-            # Define all columns with desired names
-            all_columns = [
-                'Player', 'RndDate', 'Tournament', 'Round', 'Round Type',
-                'Hole', 'Par', 'Stroke', 'Club', 'Lie',
-                'Pin Distance', 'Pin Location', 'Miss Direction',
-                'Pin-High', 'On-Line', 'Putt Break', 'Foul Ball'
-            ]
+        # Define all columns with desired names
+        all_columns = [
+            'Player', 'RndDate', 'Tournament', 'Round', 'Round Type',
+            'Hole', 'Par', 'Stroke', 'Club', 'Lie',
+            'Pin Distance', 'Pin Location', 'Miss Direction',
+            'Pin-High', 'On-Line', 'Putt Break', 'Foul Ball'
+        ]
 
-            # Prepare data
-            rows = []
-            for hole_num in range(1, len(st.session_state.hole_table["Hole"]) + 1):
-                base_data = {
-                    'Player': st.session_state.get("player_name", ""),
-                    'RndDate': st.session_state.get("round_date", ""),
-                    'Tournament': st.session_state.get("tournament_name", ""),
-                    'Round': st.session_state.get("round_number", ""),
-                    'Round Type': st.session_state.get("round_type", ""),
-                    'Hole': hole_num,
-                    'Par': st.session_state.hole_table['Par'][hole_num - 1]
-                }
+        # Prepare data
+        rows = []
+        for hole_num in sorted(saved_holes):  # Only process saved holes
+            base_data = {
+                'Player': st.session_state.get("player_name", ""),
+                'RndDate': st.session_state.get("round_date", ""),
+                'Tournament': st.session_state.get("tournament_name", ""),
+                'Round': st.session_state.get("round_number", ""),
+                'Round Type': st.session_state.get("round_type", ""),
+                'Hole': hole_num,
+                'Par': st.session_state.hole_table['Par'][hole_num - 1]
+            }
 
-                if hole_num in st.session_state.shot_data:
-                    for shot in st.session_state.shot_data[hole_num]:
-                        row = base_data.copy()
-                        row.update({
-                            'Stroke': shot.get('ShotNumber', pd.NA),
-                            'Club': shot.get('Club', pd.NA),
-                            'Lie': shot.get('Lie', pd.NA),
-                            'Pin Distance': shot.get('PinDistance', pd.NA),
-                            'Pin Location': st.session_state.hole_table['Pin'][hole_num - 1],
-                            'Miss Direction': shot.get('MissDirection', pd.NA),
-                            'Pin-High': shot.get('PinHigh', pd.NA),
-                            'On-Line': shot.get('OnLine', pd.NA),
-                            'Putt Break': shot.get('PuttBreak', pd.NA),
-                            'Foul Ball': shot.get('FoulBall', pd.NA)
-                        })
-                        rows.append(row)
-                else:
-                    # If no shots saved, still record hole info
+            if hole_num in st.session_state.shot_data:
+                for shot in st.session_state.shot_data[hole_num]:
                     row = base_data.copy()
                     row.update({
-                        'Stroke': pd.NA, 'Club': pd.NA, 'Lie': pd.NA, 'Pin Distance': pd.NA,
+                        'Stroke': shot.get('ShotNumber', pd.NA),
+                        'Club': shot.get('Club', pd.NA),
+                        'Lie': shot.get('Lie', pd.NA),
+                        'Pin Distance': shot.get('PinDistance', pd.NA),
                         'Pin Location': st.session_state.hole_table['Pin'][hole_num - 1],
-                        'Miss Direction': pd.NA, 'Pin-High': pd.NA, 'On-Line': pd.NA,
-                        'Putt Break': pd.NA, 'Foul Ball': pd.NA
+                        'Miss Direction': shot.get('MissDirection', pd.NA),
+                        'Pin-High': shot.get('PinHigh', pd.NA),
+                        'On-Line': shot.get('OnLine', pd.NA),
+                        'Putt Break': shot.get('PuttBreak', pd.NA),
+                        'Foul Ball': shot.get('FoulBall', pd.NA)
                     })
                     rows.append(row)
+            else:
+                # If no shots saved, still record hole info
+                row = base_data.copy()
+                row.update({
+                    'Stroke': pd.NA, 'Club': pd.NA, 'Lie': pd.NA, 'Pin Distance': pd.NA,
+                    'Pin Location': st.session_state.hole_table['Pin'][hole_num - 1],
+                    'Miss Direction': pd.NA, 'Pin-High': pd.NA, 'On-Line': pd.NA,
+                    'Putt Break': pd.NA, 'Foul Ball': pd.NA
+                })
+                rows.append(row)
 
-            # Create DataFrame and ensure all columns are present
-            df = pd.DataFrame(rows)
-            for col in all_columns:
-                if col not in df.columns:
-                    df[col] = pd.NA
-            df = df[all_columns]
+        # Create DataFrame and ensure all columns are present
+        df = pd.DataFrame(rows)
+        for col in all_columns:
+            if col not in df.columns:
+                df[col] = pd.NA
+        df = df[all_columns]
 
-            # Convert to CSV
-            csv_data = df.to_csv(index=False)
+        # Convert to CSV
+        csv_data = df.to_csv(index=False)
 
-            # Generate dynamic filename
-            file_name = f"{st.session_state.player_name.replace(' ', '_')}_Stroke_Trail.csv"
+        # Generate dynamic filename
+        file_name = f"{st.session_state.player_name.replace(' ', '_')}_Stroke_Trail.csv"
 
-            # Create download button
-            st.download_button(
-                label="Download CSV",
-                data=csv_data,
-                file_name=file_name,
-                mime="text/csv"
-            )
+        # Create download button
+        st.download_button(
+            label="Download CSV",
+            data=csv_data,
+            file_name=file_name,
+            mime="text/csv"
+        )
 
-            # Show preview
-            st.write("Data Preview:")
-            st.dataframe(df)
+        # Show preview
+        st.write("Data Preview:")
+        st.dataframe(df)
 
-    else:
-        st.button("Generate CSV (Complete All Holes First)", disabled=True)
-        unsaved_holes = set(range(1, len(st.session_state.hole_table["Hole"]) + 1)) - st.session_state.saved_holes
-        st.warning(f"Please Complete Shots for Holes: {', '.join(map(str, sorted(unsaved_holes)))}")
+        # Show warning if some holes were skipped
+        if unsaved_holes:
+            st.warning(f"Note: Shots for Holes {', '.join(map(str, sorted(unsaved_holes)))} were not saved and have been excluded.")
 
 #streamlit run StrokesGainedSheet.py
 
