@@ -36,11 +36,15 @@ st.markdown("""
   [data-testid="stCaptionContainer"], .stMarkdown p, .stMarkdown li,
   [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p { color:#fff !important; }
   .steps { display:flex; justify-content:space-between; margin:1rem 0 2rem; }
-  .step { flex:1; text-align:center; color:var(--text); }
+  .step { flex:1; text-align:center; }
   .step .dot { width:30px; height:30px; margin:0 auto 5px; border-radius:20%;
-      display:flex; align-items:center; justify-content:center; background:#333; }
-  .step.done .dot, .step.current .dot { background:var(--primary); }
-  .step.current .dot { outline:2px solid var(--accent, #f4a261); }
+      display:flex; align-items:center; justify-content:center;
+      background:#333333; color:#9aa0a6; font-weight:bold; }
+  .step small { color:#9aa0a6 !important; }
+  .step.done .dot { background:#2e856e; color:#ffffff; }
+  .step.done small { color:#2e856e !important; }
+  .step.current .dot { background:#2e856e; color:#ffffff; outline:2px solid #f4a261; }
+  .step.current small { color:#f4a261 !important; font-weight:bold; }
 </style>
 """, unsafe_allow_html=True)
 
