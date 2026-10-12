@@ -35,6 +35,16 @@ st.markdown("""
   label, [data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] p,
   [data-testid="stCaptionContainer"], .stMarkdown p, .stMarkdown li,
   [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p { color:#fff !important; }
+  /* expander headers ("Step 1: ...") - fixed colors for normal, hover, focus, open */
+  [data-testid="stExpander"] summary,
+  [data-testid="stExpander"] details[open] > summary {
+      background:#121212 !important; color:#ffffff !important; }
+  [data-testid="stExpander"] summary:hover,
+  [data-testid="stExpander"] summary:focus,
+  [data-testid="stExpander"] summary:active {
+      background:#1f2a27 !important; color:#ffffff !important; }
+  [data-testid="stExpander"] summary *,
+  [data-testid="stExpander"] summary:hover * { color:inherit !important; fill:currentColor !important; }
   .steps { display:flex; justify-content:space-between; margin:1rem 0 2rem; }
   .step { flex:1; text-align:center; }
   .step .dot { width:30px; height:30px; margin:0 auto 5px; border-radius:20%;
