@@ -1,4 +1,4 @@
-"""Strokes Gained Logger - refactored. Requires streamlit >= 1.40."""
+"""Strokes Gained Logger - refactored. Requires a current streamlit (>= 1.50)."""
 import json
 from datetime import date
 from pathlib import Path
@@ -32,6 +32,9 @@ st.markdown("""
       background:var(--secondary); border-color:var(--secondary); }
   .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color:var(--primary); }
   .stExpander, .stForm { background:var(--card); border-color:var(--border); border-radius:8px; }
+  label, [data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] p,
+  [data-testid="stCaptionContainer"], .stMarkdown p, .stMarkdown li,
+  [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p { color:#fff !important; }
   .steps { display:flex; justify-content:space-between; margin:1rem 0 2rem; }
   .step { flex:1; text-align:center; color:var(--text); }
   .step .dot { width:30px; height:30px; margin:0 auto 5px; border-radius:20%;
@@ -143,10 +146,10 @@ with st.sidebar:
 
 if not ss.round_info_entered and DRAFT_PATH.exists():
     c1, c2 = st.columns(2)
-    if c1.button("Resume saved draft", use_container_width=True):
+    if c1.button("Resume saved draft", width="stretch"):
         load_draft()
         st.rerun()
-    if c2.button("Discard draft", use_container_width=True):
+    if c2.button("Discard draft", width="stretch"):
         DRAFT_PATH.unlink(missing_ok=True)
         st.rerun()
 
@@ -177,7 +180,7 @@ with st.expander("Step 1: Round Info", expanded=not ss.round_info_entered):
         rtype = c[5].selectbox("Type", ["Competitive", "Practice"],
                                index=["Competitive", "Practice"].index(ss.get("round_type") or "Competitive"))
         c[6].markdown("<div style='margin-top:1.75rem'></div>", unsafe_allow_html=True)
-        if c[6].form_submit_button("Submit Round Info", use_container_width=True):
+        if c[6].form_submit_button("Submit Round Info", width="stretch"):
             if not player.strip():
                 st.error("Player name is required.")
             else:
@@ -198,7 +201,7 @@ if ss.round_info_entered:
     with st.expander("Step 2: Hole Info", expanded=not ss.hole_info_entered):
         with st.form("hole_info_form"):
             edited = st.data_editor(
-                ss.holes_df, hide_index=True, disabled=["Hole"], use_container_width=True,
+                ss.holes_df, hide_index=True, disabled=["Hole"], width="stretch",
                 key="holes_editor",
                 column_config={
                     "Par": st.column_config.NumberColumn(min_value=3, max_value=5, step=1),
@@ -206,7 +209,7 @@ if ss.round_info_entered:
                     "Yardage": st.column_config.NumberColumn(min_value=50, max_value=800, step=1),
                     "Pin": st.column_config.SelectboxColumn(options=PINS),
                 })
-            if st.form_submit_button("Submit Hole Info", use_container_width=True):
+            if st.form_submit_button("Submit Hole Info", width="stretch"):
                 if edited.isna().any().any():
                     st.warning("Fill in every cell before submitting.")
                 else:
@@ -244,17 +247,47 @@ def shot_entry():
     if base is None or len(base) != score:
         base = default_shots(score, int(row.Yardage))
 
-    edited = st.data_editor(
-        base, hide_index=True, disabled=["Shot"], key=f"shots_{hole}", use_container_width=True,
+    main_cols = ["Shot", "Club", "Lie", "PinDistance", "MissDirection"]
+    main = st.data_editor(
+        base[main_cols], hide_index=True, disabled=["Shot"], key=f"shots_{hole}",
+        width="stretch",
         column_config={
             "Lie": st.column_config.SelectboxColumn(options=LIES, required=True),
             "PinDistance": st.column_config.NumberColumn("Pin Distance", min_value=0, max_value=1000),
             "MissDirection": st.column_config.SelectboxColumn("Miss", options=MISSES),
-            "PinHigh": st.column_config.CheckboxColumn("Pin-High"),
-            "OnLine": st.column_config.CheckboxColumn("On-Line"),
-            "FoulBall": st.column_config.CheckboxColumn("Foul Ball"),
-            "PuttBreak": st.column_config.SelectboxColumn("Putt Break", options=BREAKS),
         })
+    d = base.copy()
+    d[main_cols] = main[main_cols]
+
+    # which shots each extra field applies to
+    tee, green = d.Lie.eq("Tee"), d.Lie.eq("Green")
+    approach = (tee & (par == 3)) | (~tee & ~green & d.Lie.notna())
+    foul = tee & (par != 3)
+    d.loc[~approach, ["PinHigh", "OnLine"]] = False        # clear stale values if Lie changed
+    d.loc[~foul, "FoulBall"] = False
+    d.loc[~green, "PuttBreak"] = None
+    d.loc[green & d.PuttBreak.isna(), "PuttBreak"] = "Straight"
+
+    def extra_editor(title, mask, cols, config, name):
+        idx = d.index[mask]
+        if len(idx) == 0:
+            return
+        st.caption(title)
+        sig = "-".join(map(str, idx))                       # reset editor when row set changes
+        e = st.data_editor(d.loc[idx, ["Shot"] + cols], hide_index=True, disabled=["Shot"],
+                           key=f"{name}_{hole}_{sig}", column_config=config, width="stretch")
+        d.loc[idx, cols] = e[cols]
+
+    extra_editor("Tee shot", foul, ["FoulBall"],
+                 {"FoulBall": st.column_config.CheckboxColumn("Foul Ball")}, "tee")
+    extra_editor("Approach shots" + (" (incl. par-3 tee shot)" if par == 3 else ""), approach,
+                 ["PinHigh", "OnLine"],
+                 {"PinHigh": st.column_config.CheckboxColumn("Pin-High"),
+                  "OnLine": st.column_config.CheckboxColumn("On-Line")}, "appr")
+    extra_editor("Putts", green, ["PuttBreak"],
+                 {"PuttBreak": st.column_config.SelectboxColumn("Putt Break", options=BREAKS,
+                                                                required=True)}, "putt")
+    edited = d
     ss.work[hole] = edited
 
     errors, warnings = validate_shots(edited)
@@ -288,4 +321,4 @@ if ss.hole_info_entered:
                 st.warning(f"Holes not saved (excluded from export): {', '.join(map(str, missing))}")
             st.download_button("Download CSV", out.to_csv(index=False),
                                f"{ss.player_name.replace(' ', '_')}_Stroke_Trail.csv", "text/csv")
-            st.dataframe(out, use_container_width=True)
+            st.dataframe(out, width="stretch")
